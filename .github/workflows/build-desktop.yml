@@ -107,27 +107,34 @@ jobs:
   build:
     name: "Desktop: ${{ matrix.settings.artifact_suffix }}"
     runs-on: ${{ matrix.settings.platform }}
-    environment: Production
+    # FORK-TEST: `environment: Production` removed so the fork (which has
+    # no Production environment / org secrets) can run this workflow.
+    # Restore before merging upstream.
     strategy:
       fail-fast: false
       matrix:
         settings:
-          - platform: macos-latest
-            args: --target aarch64-apple-darwin
-            target: aarch64-apple-darwin
-            artifact_suffix: aarch64-apple-darwin
-          - platform: macos-latest
-            args: --target x86_64-apple-darwin
-            target: x86_64-apple-darwin
-            artifact_suffix: x86_64-apple-darwin
+          # FORK-TEST: matrix trimmed to Linux only. The AppImage
+          # strip-graphics-libs change only affects Linux; building
+          # macOS/Windows on the fork just wastes runner time and fails
+          # on missing signing secrets. Restore the full matrix before
+          # merging upstream.
+          # - platform: macos-latest
+          #   args: --target aarch64-apple-darwin
+          #   target: aarch64-apple-darwin
+          #   artifact_suffix: aarch64-apple-darwin
+          # - platform: macos-latest
+          #   args: --target x86_64-apple-darwin
+          #   target: x86_64-apple-darwin
+          #   artifact_suffix: x86_64-apple-darwin
           - platform: ubuntu-22.04
             args: --target x86_64-unknown-linux-gnu --bundles deb appimage
             target: x86_64-unknown-linux-gnu
             artifact_suffix: ubuntu
-          - platform: windows-latest
-            args: --target x86_64-pc-windows-msvc
-            target: x86_64-pc-windows-msvc
-            artifact_suffix: windows
+          # - platform: windows-latest
+          #   args: --target x86_64-pc-windows-msvc
+          #   target: x86_64-pc-windows-msvc
+          #   artifact_suffix: windows
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Keep in sync with DEFAULT_TELEGRAM_BOT_USERNAME_* in channels/controllers/ops.rs

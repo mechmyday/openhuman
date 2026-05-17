@@ -1,0 +1,48 @@
+---
+# FORK-TEST-ONLY workflow. Not for upstream merge.
+#
+# Dispatchable wrapper around build-desktop.yml that supplies stub values
+# for the inputs release-staging/release-production normally compute, so a
+# fork without the org's secrets/environment can still build a Linux
+# AppImage and exercise the strip-graphics-libs post-bundle step.
+#
+# Outputs land as an Actions artifact (with_release_upload=false), not on
+# a GitHub Release. Download the artifact and run the AppImage on the
+# target hardware to verify graphics-driver behavior.
+name: Test AppImage Build (fork)
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag used for artifact naming. No GH Release is created.
+        type: string
+        required: true
+        default: v0.53.40-libfix
+      build_profile:
+        description: Cargo profile (debug builds faster; release exercises the real bundle).
+        type: string
+        required: true
+        default: debug
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-desktop.yml
+    secrets: inherit
+    with:
+      build_ref: ${{ github.sha }}
+      tag: ${{ inputs.tag }}
+      version: 0.53.40
+      sha: ${{ github.sha }}
+      # Downstream consumers truncate to 12 chars at runtime; passing the
+      # full SHA is fine here — release-staging/-production compute a real
+      # 12-char prefix because they need it byte-identical across reruns.
+      short_sha: ${{ github.sha }}
+      base_url: https://staging.openhuman.dev
+      app_env: staging
+      build_profile: ${{ inputs.build_profile }}
+      telegram_bot_username: alphahumantest_bot
+      with_macos_signing: false
+      with_release_upload: false
+      with_updater: false
+      build_sidecar: false
+      skip_pretests: true
