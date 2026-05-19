@@ -20,6 +20,9 @@
 #   TAURI_SIGNING_PRIVATE_KEY            — re-sign modified artifacts when set
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD   — passphrase for the key (may be empty)
 #   APPIMAGETOOL_URL                     — override appimagetool download URL
+#   APPIMAGETOOL_SHA256                  — expected SHA256 of the download
+#                                          (verified before use when set; rotate
+#                                          alongside APPIMAGETOOL_URL)
 
 set -euo pipefail
 
@@ -44,7 +47,11 @@ EXCLUDE_PATTERNS=(
   'libxcb-present.so.*'
 )
 
-APPIMAGETOOL_URL="${APPIMAGETOOL_URL:-https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage}"
+# Default to a pinned release tag rather than the mutable `continuous` asset so
+# CI builds are reproducible and resistant to upstream replacement. Override via
+# APPIMAGETOOL_URL (and bump APPIMAGETOOL_SHA256 alongside it).
+APPIMAGETOOL_URL="${APPIMAGETOOL_URL:-https://github.com/AppImage/appimagetool/releases/download/1.9.0/appimagetool-x86_64.AppImage}"
+APPIMAGETOOL_SHA256="${APPIMAGETOOL_SHA256:-}"
 
 ensure_appimagetool() {
   if command -v appimagetool >/dev/null 2>&1; then
@@ -55,6 +62,16 @@ ensure_appimagetool() {
   if [ ! -x "$tool" ]; then
     echo "[strip-libs] Downloading appimagetool from $APPIMAGETOOL_URL"
     curl -fsSL "$APPIMAGETOOL_URL" -o "$tool"
+    if [ -n "$APPIMAGETOOL_SHA256" ]; then
+      echo "[strip-libs] Verifying appimagetool sha256"
+      if ! echo "${APPIMAGETOOL_SHA256}  ${tool}" | sha256sum -c -; then
+        echo "[strip-libs] ERROR: appimagetool sha256 mismatch — refusing to run" >&2
+        rm -f "$tool"
+        exit 1
+      fi
+    else
+      echo "[strip-libs] WARNING: APPIMAGETOOL_SHA256 not set — skipping integrity check" >&2
+    fi
     chmod +x "$tool"
   fi
   APPIMAGETOOL_BIN="$tool"
